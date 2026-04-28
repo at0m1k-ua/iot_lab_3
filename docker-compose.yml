@@ -1,0 +1,48 @@
+services:
+  hivemq:
+    image: hivemq/hivemq-ce:2025.5
+    container_name: hivemq
+    ports:
+      - "1883:1883"
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/1883' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  webapp:
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile
+    container_name: iot-webapp
+    ports:
+      - "3000:80"
+    environment:
+      MQTT_WS_URL: ws://localhost:8000/mqtt
+    depends_on:
+      hivemq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  heat-meter:
+    build:
+      context: .
+      dockerfile: Dockerfile.heat
+    container_name: heat-meter
+    depends_on:
+      hivemq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  electricity-meter:
+    build:
+      context: .
+      dockerfile: Dockerfile.electricity
+    container_name: electricity-meter
+    depends_on:
+      hivemq:
+        condition: service_healthy
+    restart: unless-stopped
